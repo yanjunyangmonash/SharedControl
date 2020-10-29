@@ -32,7 +32,7 @@ class VideoConstants(object):
         circle_x = 493
         circle_y = 278
         left_bound = 275
-        right_bound = 711
+        right_bound = 710
         return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
 
     def video_num_14(self):
