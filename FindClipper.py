@@ -1,6 +1,6 @@
 import cv2
 import openpyxl
-from math import atan, tan, asin, pi
+from math import atan2, asin, pi
 import numpy as np
 import constant
 from utils import GeoCalculation as GC
@@ -10,8 +10,7 @@ from utils import featurepoints as fp
 from utils import anglebisector as ab
 
 
-def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_coor, left_bound, right_bound,
-                        excel_number, inner_r, outer_r, real_r, box_height, pre_width, pre_length, pre_LW_Ratio):
+def calculate_distances(contours_number, excel_number, pre_width, pre_length, pre_LW_Ratio):
     # Set up parameters
     contour_areas = []
     two_tools_touch = 0
@@ -24,13 +23,15 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
     # Manually set metrics (Use Clip33 as the ref)
     # For two masks classification
     area_ratio_metrics = 10
-    mask_dist_metrics = (real_r * 2) * 0.24
-    end_effector_detail = (real_r * 2) * 0.18
-    tool_body_concave = (real_r * 2) * 0.0449
+    mask_dist_metrics = (true_rad * 2) * 0.24
+    end_effector_detail = (true_rad * 2) * 0.18
+    tool_body_concave = (true_rad * 2) * 0.0449
     k_ratio = 0.3
     length_ratio_metrics = 50
-    #small_area_metrics = (np.pi * true_rad * true_rad) * 0.005
-    small_area_metrics = 1000
+    angle = atan2(270, (boundaryr - circle_x))
+    angle = int(angle * 180 / pi)
+    lapview_area = 270 * (boundaryr - boundaryl) + (pi * (true_rad ** 2)) * (angle / 180)
+    small_area_metrics = lapview_area * 0.012
 
     for num_of_contours in range(len(contours_number)):
         M = cv2.moments(contours_number[num_of_contours], 0)
@@ -44,14 +45,14 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
             true_mass_ys.append(0)
             continue
 
-        if mass_centres_x < left_bound:
+        if mass_centres_x < boundaryl:
             number.append(0)
             contour_areas.append(1)
             true_mass_xs.append(0)
             true_mass_ys.append(0)
             numbers = len(contours_number[num_of_contours])
             for i in range(numbers):
-                if contours_number[num_of_contours][i][0][0] > right_bound:
+                if contours_number[num_of_contours][i][0][0] > boundaryr:
                     dist = (contours_number[num_of_contours][i][0][0] - circle_x) ** 2 + (
                             contours_number[num_of_contours][i][0][1] - circle_y) ** 2
                     # If two tools contact together
@@ -59,24 +60,24 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
                         two_tools_touch = 1
                         break
 
-        elif left_bound <= mass_centres_x < circle_x_coor:
+        elif boundaryl <= mass_centres_x < circle_x:
             right_tool = 0
             numbers = len(contours_number[num_of_contours])
             for j in range(numbers):
                 if contours_number[num_of_contours][j][0][1] > 525 or contours_number[num_of_contours][j][0][1] < 15:
                     right_tool = 1
 
-                if contours_number[num_of_contours][j][0][0] > right_bound:
-                    dist = (contours_number[num_of_contours][j][0][0] - circle_x_coor) ** 2 + (
-                            contours_number[num_of_contours][j][0][1] - circle_y_coor) ** 2
+                if contours_number[num_of_contours][j][0][0] > boundaryr:
+                    dist = (contours_number[num_of_contours][j][0][0] - circle_x) ** 2 + (
+                            contours_number[num_of_contours][j][0][1] - circle_y) ** 2
                     # If two tools contact together
-                    if (inner_rad) ** 2 <= dist <= outer_r ** 2:
+                    if (inner_rad) ** 2 <= dist <= outer_rad ** 2:
                         two_tools_touch = 1
                         break
-                elif contours_number[num_of_contours][j][0][0] < left_bound:
-                    dist = (contours_number[num_of_contours][j][0][0] - circle_x_coor) ** 2 + (
-                            contours_number[num_of_contours][j][0][1] - circle_y_coor) ** 2
-                    if (inner_rad) ** 2 <= dist <= outer_r ** 2:
+                elif contours_number[num_of_contours][j][0][0] < boundaryl:
+                    dist = (contours_number[num_of_contours][j][0][0] - circle_x) ** 2 + (
+                            contours_number[num_of_contours][j][0][1] - circle_y) ** 2
+                    if (inner_rad) ** 2 <= dist <= outer_rad ** 2:
                         right_tool = 0
                         break
 
@@ -86,6 +87,8 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
                 box = cv2.boxPoints(rect)
                 box_h = abs(((box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1])) ** 0.5)
                 box_w = abs(((box[1][0] - box[2][0]) ** 2 + (box[1][1] - box[2][1])) ** 0.5)
+                box = np.int0(box)
+                cv2.drawContours(frame1, [box], 0, (0, 255, 255), 3)
                 number.append(num_of_contours)
                 true_mass_xs.append(mass_centres_x)
                 true_mass_ys.append(mass_centres_y)
@@ -101,7 +104,7 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
                 true_mass_ys.append(0)
 
 
-        elif mass_centres_x >= circle_x_coor:
+        elif mass_centres_x >= circle_x:
             # Calculate min area rect
             rect = cv2.minAreaRect(contours_number[num_of_contours])
             box = cv2.boxPoints(rect)
@@ -109,6 +112,8 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
             box_w = abs(((box[1][0] - box[2][0]) ** 2 + (box[1][1] - box[2][1])) ** 0.5)
             if box_h * box_w > small_area_metrics:
                 contour_areas.append(box_h * box_w)
+                box = np.int0(box)
+                cv2.drawContours(frame1, [box], 0, (0, 255, 255), 3)
             else:
                 contour_areas.append(2)
             number.append(num_of_contours)
@@ -117,10 +122,10 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
 
             numbers = len(contours_number[num_of_contours])
             for l in range(numbers):
-                if contours_number[num_of_contours][l][0][0] < left_bound:
-                    dist = (contours_number[num_of_contours][l][0][0] - circle_x_coor) ** 2 + (
-                            contours_number[num_of_contours][l][0][1] - circle_y_coor) ** 2
-                    if (inner_rad) ** 2 <= dist <= outer_r ** 2:
+                if contours_number[num_of_contours][l][0][0] < boundaryl:
+                    dist = (contours_number[num_of_contours][l][0][0] - circle_x) ** 2 + (
+                            contours_number[num_of_contours][l][0][1] - circle_y) ** 2
+                    if (inner_rad) ** 2 <= dist <= outer_rad ** 2:
                         two_tools_touch = 1
                         break
 
@@ -160,7 +165,7 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
     # Find max contour on the right side
     sorted_contour_areas = sorted(contour_areas)
     max_num_id = contour_areas.index(max(contour_areas))
-    #cv2.drawContours(frame1, contours_number[max_num_id], -1, (255, 0, 0), 3)
+    # cv2.drawContours(frame1, contours_number[max_num_id], -1, (255, 0, 0), 3)
     if len(contour_areas) > 1 and sorted_contour_areas[-2] != 0:
         sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
         cv2.drawContours(frame1, contours_number[sec_max_num_id], -1, (0, 0, 255), 3)
@@ -186,7 +191,6 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
             cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
             print('No.' + str(frames))
             return RowNumber, pre_width, pre_length, pre_LW_Ratio
-
 
     hull = cv2.convexHull(contours_number[max_num_id], clockwise=False, returnPoints=False)
     try:
@@ -260,7 +264,7 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
             circle_cen = (circle_x, circle_y)
             circle_rad = true_rad
             new_point = GC.circle_line_segment_intersection(circle_cen, circle_rad, pt1, pt2, full_line=True,
-                                                         tangent_tol=1e-9)
+                                                            tangent_tol=1e-9)
             if new_point[0][0] > new_point[1][0]:
                 new_point = (new_point[0][0], new_point[0][1])
             else:
@@ -273,7 +277,8 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
                         0.5,
                         (0, 255, 0))
             if length_ratio >= length_ratio_metrics:
-                cv2.putText(frame1, "Longer than length_ratio_metrics, Dont record", (20, 120), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+                cv2.putText(frame1, "Longer than length_ratio_metrics, Dont record", (20, 120), cv2.FONT_ITALIC, 0.5,
+                            (0, 255, 0))
                 sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
                 sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
                 sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
@@ -283,7 +288,6 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
                 print('No.' + str(frames))
                 return RowNumber, None, None, None
 
-
     cv2.putText(frame1, "Record", (20, 120), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     # Find max contour on the right side
     max_num_id = contour_areas.index(max(contour_areas))
@@ -292,12 +296,13 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
     max_num = number[max_num_id]
 
     # Collect points from the max contour to prepare K-means
-    points, curve_pathx, curve_pathy, upbox_x, upbox_y, downbox_x, downbox_y = k.prep_for_Kmeans(contours_number, max_num,
-                                                                                               circle_x_coor,
-                                                                                               circle_y_coor,
-                                                                                               left_bound,
-                                                                                               right_bound, inner_r,
-                                                                                               outer_r, box_height)
+    points, curve_pathx, curve_pathy, upbox_x, upbox_y, downbox_x, downbox_y = k.prep_for_Kmeans(contours_number,
+                                                                                                 max_num,
+                                                                                                 circle_x,
+                                                                                                 circle_y,
+                                                                                                 boundaryl,
+                                                                                                 boundaryr, inner_rad,
+                                                                                                 outer_rad, boxheight)
     # Run the K means to get feature points
     centers, have_centers = k.kmeans_algorithm(points)
     if have_centers == 0:
@@ -314,9 +319,10 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
     p4 = (true_mass_x, true_mass_y)
 
     if len(downbox_x) and len(curve_pathx):
-        pr, pd = fp.get_feature_points_b(centers, bottom_or_top=1)
-        pnr = get_next_point(centers, pr, add_x_restriction=1)
-        pnd = get_next_point(centers, pd, add_x_restriction=0)
+        # pr, pd = fp.get_feature_points_b(centers, bottom_or_top=1)
+        # pnr = fp.get_next_point(centers, pr, add_x_restriction=1)
+        # pnd = fp.get_next_point(centers, pd, add_x_restriction=0)
+        pr, pnr, pd, pnd = fp.get_feature_points_b_use_k(centers, bottom_or_top=1)
         k5, p5 = ab.find_angle_bisector_curveedge(pr, pnr, pd, pnd, centers)
         p3_index = curve_pathy.index(min(curve_pathy))
         p3 = (curve_pathx[p3_index], curve_pathy[p3_index])
@@ -326,7 +332,7 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
         cv2.line(frame1, (int(pd[0]), int(pd[1])), (int(pnd[0]), int(pnd[1])), (255, 0, 0), thickness=5)
 
     elif len(downbox_x) and len(curve_pathx) == 0:
-        pr, pnr, pl, pnl = fp.get_feature_points_c(centers, right_bound, left_bound, bottom_or_top=1)
+        pr, pnr, pl, pnl = fp.get_feature_points_c_use_k(centers, bottom_or_top=1)
         k5, p5 = ab.find_angle_bisector(pr, pnr, pl, pnl, centers)
         p2_index = downbox_x.index(min(downbox_x))
         p2 = (downbox_x[p2_index], downbox_y[p2_index])
@@ -338,9 +344,10 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
         cv2.line(frame1, (int(pl[0]), int(pl[1])), (int(pnl[0]), int(pnl[1])), (255, 0, 0), thickness=5)
 
     elif len(upbox_x) and len(curve_pathx):
-        pr, pu = fp.get_feature_points_b(centers, bottom_or_top=0)
-        pnr = fp.get_next_point(centers, pr, add_x_restriction=1)
-        pnu = fp.get_next_point(centers, pu, add_x_restriction=0)
+        # pr, pu = fp.get_feature_points_b(centers, bottom_or_top=0)
+        # pnr = fp.get_next_point(centers, pr, add_x_restriction=1)
+        # pnu = fp.get_next_point(centers, pu, add_x_restriction=0)
+        pr, pnr, pu, pnu = fp.get_feature_points_b_use_k(centers, bottom_or_top=0)
         k5, p5 = ab.find_angle_bisector_curveedge(pu, pnu, pr, pnr, centers)
         p3_index = curve_pathy.index(max(curve_pathy))
         p3 = (curve_pathx[p3_index], curve_pathy[p3_index])
@@ -350,7 +357,7 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
         cv2.line(frame1, (int(pu[0]), int(pu[1])), (int(pnu[0]), int(pnu[1])), (255, 0, 0), thickness=5)
 
     elif len(upbox_x) and len(curve_pathx) == 0:
-        pl, pnl, pr, pnr = fp.get_feature_points_c(centers, right_bound, left_bound, bottom_or_top=0)
+        pl, pnl, pr, pnr = fp.get_feature_points_c_use_k(centers, bottom_or_top=0)
         k5, p5 = ab.find_angle_bisector(pl, pnl, pr, pnr, centers)
         p2_index = upbox_x.index(min(upbox_x))
         p2 = (upbox_x[p2_index], upbox_y[p2_index])
@@ -362,7 +369,7 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
         cv2.line(frame1, (int(pr[0]), int(pr[1])), (int(pnr[0]), int(pnr[1])), (255, 0, 0), thickness=5)
 
     elif len(curve_pathx):
-        pu, pnu, pd, pnd = fp.get_feature_points_a_use_k(centers, real_r, circle_x_coor, circle_y_coor)
+        pu, pnu, pd, pnd = fp.get_feature_points_a_use_k(centers, true_rad, circle_x, circle_y)
         k5, p5 = ab.find_angle_bisector_curve(pu, pnu, pd, pnd, centers)
         p2_index = curve_pathy.index(min(curve_pathy))
         p2 = (curve_pathx[p2_index], curve_pathy[p2_index])
@@ -384,16 +391,26 @@ def calculate_distances(no_of_frame, contours_number, circle_x_coor, circle_y_co
         return RowNumber, pre_width, pre_length, pre_LW_Ratio
 
     pointsdist = ((p2[1] - p3[1]) ** 2 + (p2[0] - p3[0]) ** 2) ** 0.5
-    arclength = asin(circle_y / real_r) * 2 * real_r
+    arclength = asin(circle_y / true_rad) * 2 * true_rad
     pointsdist = pointsdist / arclength * 100
     pre_width = pointsdist
 
     p_tip1, p_tip2, length = GC.get_tool_length(p2, p3, centers, k5)
-    length = length / (real_r * 2) * 100
+    length = length / (true_rad * 2) * 100
     pre_length = length
     if pointsdist != 0:
         LW_Ratio = length / pointsdist
-        if LW_Ratio > 20:
+        if LW_Ratio > 3.5 or LW_Ratio < 0.5:
+            cv2.putText(frame1, "Strange data", (20, 80), cv2.FONT_ITALIC, 0.5,
+                        (0, 255, 0))
+            sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
+            sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
+            sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
+            sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
+            RowNumber += 1
+            cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+            print('No.' + str(frames))
+            return RowNumber, None, None, None
             LW_Ratio = 0
     else:
         LW_Ratio = 0
@@ -435,7 +452,7 @@ if __name__ == "__main__":
     # ---------------------------------
 
     # Laparoscopic view geo parameters
-    video_num = 41
+    video_num = 43
     video_constant = constant.VideoConstants()
     constant_values = video_constant.num_to_constants(video_num)()
 
@@ -449,11 +466,11 @@ if __name__ == "__main__":
     boxheight = 10
     # --------------------------------
 
-    for frames in range(411, 800, 1):
+    for frames in range(3149, 3150, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
-            folder_name = str(10*(video_num//10)+1) + '-' + str(10*(video_num//10)+10)
+            folder_name = str(10 * (video_num // 10) + 1) + '-' + str(10 * (video_num // 10) + 10)
         frame = cv2.imread('E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip' + str(video_num) + '_' + str(
             frames) + 'M.jpg')
         frame1 = cv2.imread(
@@ -462,10 +479,8 @@ if __name__ == "__main__":
         mask_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         ret, contours_frame = cv2.threshold(mask_frame, 127, 255, cv2.THRESH_BINARY)
         contours, hierarchy = cv2.findContours(contours_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        Row_Number, prewidth, prelength, prelwratio = calculate_distances(frames, contours, circle_x, circle_y,
-                                                                          boundaryl, boundaryr,
-                                                                          Row_Number, inner_rad, outer_rad, true_rad,
-                                                                          boxheight, prewidth, prelength, prelwratio)
+        Row_Number, prewidth, prelength, prelwratio = calculate_distances(contours, Row_Number, prewidth, prelength,
+                                                                          prelwratio)
 
     workbook.save(tablepath)
     print('Finish')
