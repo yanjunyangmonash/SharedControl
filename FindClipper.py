@@ -23,7 +23,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     # Manually set metrics (Use Clip33 as the ref)
     # For two masks classification
     area_ratio_metrics = 10
-    mask_dist_metrics = (true_rad * 2) * 0.24
+    mask_dist_metrics = (true_rad * 2) * 0.3
     end_effector_detail = (true_rad * 2) * 0.18
     tool_body_concave = (true_rad * 2) * 0.0449
     k_ratio = 0.3
@@ -32,6 +32,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     angle = int(angle * 180 / pi)
     lapview_area = 270 * (boundaryr - boundaryl) + (pi * (true_rad ** 2)) * (angle / 180)
     small_area_metrics = lapview_area * 0.012
+    big_area_metrics = small_area_metrics * 3
 
     for num_of_contours in range(len(contours_number)):
         M = cv2.moments(contours_number[num_of_contours], 0)
@@ -71,15 +72,15 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                     dist = (contours_number[num_of_contours][j][0][0] - circle_x) ** 2 + (
                             contours_number[num_of_contours][j][0][1] - circle_y) ** 2
                     # If two tools contact together
-                    if (inner_rad) ** 2 <= dist <= outer_rad ** 2:
+                    if inner_rad ** 2 <= dist <= outer_rad ** 2:
                         two_tools_touch = 1
-                        break
+                        #break
                 elif contours_number[num_of_contours][j][0][0] < boundaryl:
                     dist = (contours_number[num_of_contours][j][0][0] - circle_x) ** 2 + (
                             contours_number[num_of_contours][j][0][1] - circle_y) ** 2
-                    if (inner_rad) ** 2 <= dist <= outer_rad ** 2:
+                    if inner_rad ** 2 <= dist <= outer_rad ** 2:
                         right_tool = 0
-                        break
+                        #break
 
             # Calculate min area rect
             if right_tool:
@@ -93,10 +94,10 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                 true_mass_xs.append(mass_centres_x)
                 true_mass_ys.append(mass_centres_y)
 
-                if box_h * box_w > small_area_metrics:
-                    contour_areas.append(box_h * box_w)
-                else:
-                    contour_areas.append(2)
+                #if box_h * box_w > small_area_metrics:
+                contour_areas.append(box_h * box_w)
+                #else:
+                    #contour_areas.append(2)
             else:
                 number.append(0)
                 contour_areas.append(1)
@@ -110,12 +111,12 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
             box = cv2.boxPoints(rect)
             box_h = abs(((box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1])) ** 0.5)
             box_w = abs(((box[1][0] - box[2][0]) ** 2 + (box[1][1] - box[2][1])) ** 0.5)
-            if box_h * box_w > small_area_metrics:
-                contour_areas.append(box_h * box_w)
-                box = np.int0(box)
-                cv2.drawContours(frame1, [box], 0, (0, 255, 255), 3)
-            else:
-                contour_areas.append(2)
+            #if box_h * box_w > small_area_metrics:
+            contour_areas.append(box_h * box_w)
+            box = np.int0(box)
+            cv2.drawContours(frame1, [box], 0, (0, 255, 255), 3)
+            #else:
+                #contour_areas.append(2)
             number.append(num_of_contours)
             true_mass_xs.append(mass_centres_x)
             true_mass_ys.append(mass_centres_y)
@@ -151,46 +152,48 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         print('No.' + str(frames))
         return RowNumber, pre_width, pre_length, pre_LW_Ratio
 
-    if 1 < max(contour_areas) < 3:
+    # Find max contour on the right side
+    sorted_contour_areas = sorted(contour_areas)
+    max_num_id = contour_areas.index(max(contour_areas))
+    # cv2.drawContours(frame1, contours_number[max_num_id], -1, (255, 0, 0), 3)
+    # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
+    if sorted_contour_areas[-1] < big_area_metrics:
+        if len(contour_areas) > 1 and sorted_contour_areas[-2] != 0:
+            sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
+            #cv2.drawContours(frame1, contours_number[sec_max_num_id], -1, (0, 0, 255), 3)
+            area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
+            cv2.putText(frame1, "Area Ratio: {:.2f}%".format(area_ratio), (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+
+            max_x = true_mass_xs[max_num_id]
+            max_y = true_mass_ys[max_num_id]
+            sec_max_x = true_mass_xs[sec_max_num_id]
+            sec_max_y = true_mass_ys[sec_max_num_id]
+            mask_dist = ((max_x - sec_max_x) ** 2 + (max_y - sec_max_y) ** 2) ** 0.5
+
+            cv2.circle(frame1, (int(max_x), int(max_y)), 8, (0, 0, 255), 5)
+            cv2.circle(frame1, (int(sec_max_x), int(sec_max_y)), 8, (255, 0, 0), 5)
+
+            if area_ratio > area_ratio_metrics and mask_dist < mask_dist_metrics:
+                cv2.putText(frame1, "Only have end effector", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+                sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
+                sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
+                sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
+                sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
+                RowNumber += 1
+                cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+                print('No.' + str(frames))
+                return RowNumber, pre_width, pre_length, pre_LW_Ratio
+
+    if max(contour_areas) < small_area_metrics:
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
         sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
         RowNumber += 1
-        cv2.putText(frame1, "right tool mask too small", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+        cv2.putText(frame1, "right tool mask too small", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
         cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
         return RowNumber, pre_width, pre_length, pre_LW_Ratio
-
-    # Find max contour on the right side
-    sorted_contour_areas = sorted(contour_areas)
-    max_num_id = contour_areas.index(max(contour_areas))
-    # cv2.drawContours(frame1, contours_number[max_num_id], -1, (255, 0, 0), 3)
-    if len(contour_areas) > 1 and sorted_contour_areas[-2] != 0:
-        sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
-        cv2.drawContours(frame1, contours_number[sec_max_num_id], -1, (0, 0, 255), 3)
-        area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
-        cv2.putText(frame1, "Area Ratio: {:.2f}%".format(area_ratio), (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-
-        max_x = true_mass_xs[max_num_id]
-        max_y = true_mass_ys[max_num_id]
-        sec_max_x = true_mass_xs[sec_max_num_id]
-        sec_max_y = true_mass_ys[sec_max_num_id]
-        mask_dist = ((max_x - sec_max_x) ** 2 + (max_y - sec_max_y) ** 2) ** 0.5
-
-        cv2.circle(frame1, (int(max_x), int(max_y)), 8, (0, 0, 255), 5)
-        cv2.circle(frame1, (int(sec_max_x), int(sec_max_y)), 8, (255, 0, 0), 5)
-
-        if area_ratio > area_ratio_metrics and mask_dist < mask_dist_metrics:
-            cv2.putText(frame1, "Only have end effector", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-            sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-            sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-            sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-            sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-            RowNumber += 1
-            cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-            print('No.' + str(frames))
-            return RowNumber, pre_width, pre_length, pre_LW_Ratio
 
     hull = cv2.convexHull(contours_number[max_num_id], clockwise=False, returnPoints=False)
     try:
@@ -400,7 +403,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     pre_length = length
     if pointsdist != 0:
         LW_Ratio = length / pointsdist
-        if LW_Ratio > 3.5 or LW_Ratio < 0.5:
+        if LW_Ratio > 4 or LW_Ratio < 0.5:
             cv2.putText(frame1, "Strange data", (20, 80), cv2.FONT_ITALIC, 0.5,
                         (0, 255, 0))
             sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
@@ -462,11 +465,11 @@ if __name__ == "__main__":
     circle_x = constant_values[3]
     circle_y = constant_values[4]
     boundaryl = constant_values[5]
-    boundaryr = constant_values[6]
+    boundaryr =+ constant_values[6]
     boxheight = 10
     # --------------------------------
 
-    for frames in range(3149, 3150, 1):
+    for frames in range(3075, 3677, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
