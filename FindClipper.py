@@ -61,8 +61,10 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                         two_tools_touch = 1
                         break
 
+        # This part can be modified to speed up the process
         elif boundaryl <= mass_centres_x < circle_x:
             right_tool = 0
+            no_left_tool = 1
             numbers = len(contours_number[num_of_contours])
             for j in range(numbers):
                 if contours_number[num_of_contours][j][0][1] > 525 or contours_number[num_of_contours][j][0][1] < 15:
@@ -75,15 +77,23 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                     if inner_rad ** 2 <= dist <= outer_rad ** 2:
                         two_tools_touch = 1
                         #break
+                elif (contours_number[num_of_contours][j][0][0] > circle_x * 1.2 and
+                        contours_number[num_of_contours][j][0][1] > 525) or (
+                        contours_number[num_of_contours][j][0][0] > circle_x * 1.2 and
+                        contours_number[num_of_contours][j][0][1] < 15):
+                    two_tools_touch = 1
+                    #break
                 elif contours_number[num_of_contours][j][0][0] < boundaryl:
-                    dist = (contours_number[num_of_contours][j][0][0] - circle_x) ** 2 + (
-                            contours_number[num_of_contours][j][0][1] - circle_y) ** 2
-                    if inner_rad ** 2 <= dist <= outer_rad ** 2:
-                        right_tool = 0
-                        #break
+                    if no_left_tool == 1:
+                        dist = (contours_number[num_of_contours][j][0][0] - circle_x) ** 2 + (
+                                contours_number[num_of_contours][j][0][1] - circle_y) ** 2
+                        if inner_rad ** 2 <= dist <= outer_rad ** 2:
+                            no_left_tool = 0
+                            #break
+                two_tools_touch = two_tools_touch - no_left_tool
 
             # Calculate min area rect
-            if right_tool:
+            if right_tool * no_left_tool > 0:
                 rect = cv2.minAreaRect(contours_number[num_of_contours])
                 box = cv2.boxPoints(rect)
                 box_h = abs(((box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1])) ** 0.5)
@@ -455,7 +465,7 @@ if __name__ == "__main__":
     # ---------------------------------
 
     # Laparoscopic view geo parameters
-    video_num = 43
+    video_num = 71
     video_constant = constant.VideoConstants()
     constant_values = video_constant.num_to_constants(video_num)()
 
@@ -469,12 +479,12 @@ if __name__ == "__main__":
     boxheight = 10
     # --------------------------------
 
-    for frames in range(3075, 3677, 1):
+    for frames in range(2, 575, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
             folder_name = str(10 * (video_num // 10) + 1) + '-' + str(10 * (video_num // 10) + 10)
-        frame = cv2.imread('E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip' + str(video_num) + '_' + str(
+        frame = cv2.imread('E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip_' + str(video_num) + '' + str(
             frames) + 'M.jpg')
         frame1 = cv2.imread(
             'E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1D/clip' + str(video_num) + '_' + str(
