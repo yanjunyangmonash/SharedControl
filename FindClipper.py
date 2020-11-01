@@ -31,7 +31,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     angle = atan2(270, (boundaryr - circle_x))
     angle = int(angle * 180 / pi)
     lapview_area = 270 * (boundaryr - boundaryl) + (pi * (true_rad ** 2)) * (angle / 180)
-    small_area_metrics = lapview_area * 0.012
+    small_area_metrics = lapview_area * 0.03
     big_area_metrics = small_area_metrics * 3
 
     for num_of_contours in range(len(contours_number)):
@@ -96,8 +96,8 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
             if right_tool * no_left_tool > 0:
                 rect = cv2.minAreaRect(contours_number[num_of_contours])
                 box = cv2.boxPoints(rect)
-                box_h = abs(((box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1])) ** 0.5)
-                box_w = abs(((box[1][0] - box[2][0]) ** 2 + (box[1][1] - box[2][1])) ** 0.5)
+                box_h = abs(((box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1]) ** 2) ** 0.5)
+                box_w = abs(((box[1][0] - box[2][0]) ** 2 + (box[1][1] - box[2][1]) ** 2) ** 0.5)
                 box = np.int0(box)
                 cv2.drawContours(frame1, [box], 0, (0, 255, 255), 3)
                 number.append(num_of_contours)
@@ -119,8 +119,8 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
             # Calculate min area rect
             rect = cv2.minAreaRect(contours_number[num_of_contours])
             box = cv2.boxPoints(rect)
-            box_h = abs(((box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1])) ** 0.5)
-            box_w = abs(((box[1][0] - box[2][0]) ** 2 + (box[1][1] - box[2][1])) ** 0.5)
+            box_h = abs(((box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1]) ** 2) ** 0.5)
+            box_w = abs(((box[1][0] - box[2][0]) ** 2 + (box[1][1] - box[2][1]) ** 2) ** 0.5)
             #if box_h * box_w > small_area_metrics:
             contour_areas.append(box_h * box_w)
             box = np.int0(box)
@@ -164,7 +164,17 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
 
     # Find max contour on the right side
     sorted_contour_areas = sorted(contour_areas)
+    # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
     max_num_id = contour_areas.index(max(contour_areas))
+    if len(contour_areas) > 1 and sorted_contour_areas[-2] > small_area_metrics/5:
+        sec_num_id = contour_areas.index(sorted_contour_areas[-2])
+        if (true_mass_xs[max_num_id] - circle_x)*(true_mass_xs[sec_num_id] - circle_x) > 0:
+            if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_num_id] * true_mass_ys[
+                sec_num_id]:
+                max_num_id = contour_areas.index(sorted_contour_areas[-2])
+        else:
+            if true_mass_xs[max_num_id] < true_mass_xs[sec_num_id]:
+                max_num_id = contour_areas.index(sorted_contour_areas[-2])
     # cv2.drawContours(frame1, contours_number[max_num_id], -1, (255, 0, 0), 3)
     # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
     if sorted_contour_areas[-1] < big_area_metrics:
@@ -303,7 +313,6 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
 
     cv2.putText(frame1, "Record", (20, 120), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     # Find max contour on the right side
-    max_num_id = contour_areas.index(max(contour_areas))
     true_mass_x = true_mass_xs[max_num_id]
     true_mass_y = true_mass_ys[max_num_id]
     max_num = number[max_num_id]
@@ -465,7 +474,7 @@ if __name__ == "__main__":
     # ---------------------------------
 
     # Laparoscopic view geo parameters
-    video_num = 71
+    video_num = 52
     video_constant = constant.VideoConstants()
     constant_values = video_constant.num_to_constants(video_num)()
 
@@ -475,16 +484,16 @@ if __name__ == "__main__":
     circle_x = constant_values[3]
     circle_y = constant_values[4]
     boundaryl = constant_values[5]
-    boundaryr =+ constant_values[6]
+    boundaryr = constant_values[6]
     boxheight = 10
     # --------------------------------
 
-    for frames in range(2, 575, 1):
+    for frames in range(3446, 4960, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
             folder_name = str(10 * (video_num // 10) + 1) + '-' + str(10 * (video_num // 10) + 10)
-        frame = cv2.imread('E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip_' + str(video_num) + '' + str(
+        frame = cv2.imread('E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip' + str(video_num) + '_' + str(
             frames) + 'M.jpg')
         frame1 = cv2.imread(
             'E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1D/clip' + str(video_num) + '_' + str(
