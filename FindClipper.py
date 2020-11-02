@@ -164,32 +164,60 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
 
     # Find max contour on the right side
     sorted_contour_areas = sorted(contour_areas)
-    # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
+
     max_num_id = contour_areas.index(max(contour_areas))
     if len(contour_areas) > 1 and sorted_contour_areas[-2] > small_area_metrics/5:
         sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
-        if (true_mass_xs[max_num_id] - circle_x)*(true_mass_xs[sec_max_num_id] - circle_x) > 0:
-            if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_max_num_id] * true_mass_ys[
-                    sec_max_num_id]:
-                max_num_id = contour_areas.index(sorted_contour_areas[-2])
-                sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
+        # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
+        #if (true_mass_xs[max_num_id] - circle_x)*(true_mass_xs[sec_max_num_id] - circle_x) > 0:
+            #if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_max_num_id] * true_mass_ys[
+                    #sec_max_num_id]:
+                #max_num_id = contour_areas.index(sorted_contour_areas[-2])
+                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
 
-        else:
-            if true_mass_xs[max_num_id] < true_mass_xs[sec_max_num_id]:
-                max_num_id = contour_areas.index(sorted_contour_areas[-2])
-                sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
+        #else:
+            #if true_mass_xs[max_num_id] < true_mass_xs[sec_max_num_id]:
+                #max_num_id = contour_areas.index(sorted_contour_areas[-2])
+                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
 
         # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
         if sorted_contour_areas[-1] < big_area_metrics:
-            area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
+            if len(sorted_contour_areas) > 2:
+                thr_max_num_id = contour_areas.index(sorted_contour_areas[-3])
+                max_x = true_mass_xs[max_num_id]
+                max_y = true_mass_ys[max_num_id]
+                sec_max_x = true_mass_xs[sec_max_num_id]
+                sec_max_y = true_mass_ys[sec_max_num_id]
+                thr_max_x = true_mass_xs[thr_max_num_id]
+                thr_max_y = true_mass_ys[thr_max_num_id]
+                mask_dist1 = ((max_x - sec_max_x) ** 2 + (max_y - sec_max_y) ** 2) ** 0.5
+                mask_dist2 = ((sec_max_x - thr_max_x) ** 2 + (sec_max_y - thr_max_y) ** 2) ** 0.5
+
+                if mask_dist1 > mask_dist2:
+                    area_ratio = sorted_contour_areas[-3] / sorted_contour_areas[-2] * 100
+                    max_x = true_mass_xs[sec_max_num_id]
+                    max_y = true_mass_ys[sec_max_num_id]
+                    sec_max_x = true_mass_xs[thr_max_num_id]
+                    sec_max_y = true_mass_ys[thr_max_num_id]
+                    mask_dist = mask_dist2
+
+                else:
+                    area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
+                    max_x = true_mass_xs[max_num_id]
+                    max_y = true_mass_ys[max_num_id]
+                    sec_max_x = true_mass_xs[sec_max_num_id]
+                    sec_max_y = true_mass_ys[sec_max_num_id]
+                    mask_dist = mask_dist1
+
+            else:
+                area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
+                max_x = true_mass_xs[max_num_id]
+                max_y = true_mass_ys[max_num_id]
+                sec_max_x = true_mass_xs[sec_max_num_id]
+                sec_max_y = true_mass_ys[sec_max_num_id]
+                mask_dist = ((max_x - sec_max_x) ** 2 + (max_y - sec_max_y) ** 2) ** 0.5
+
             cv2.putText(frame1, "Area Ratio: {:.2f}%".format(area_ratio), (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-
-            max_x = true_mass_xs[max_num_id]
-            max_y = true_mass_ys[max_num_id]
-            sec_max_x = true_mass_xs[sec_max_num_id]
-            sec_max_y = true_mass_ys[sec_max_num_id]
-            mask_dist = ((max_x - sec_max_x) ** 2 + (max_y - sec_max_y) ** 2) ** 0.5
-
             cv2.circle(frame1, (int(max_x), int(max_y)), 8, (0, 0, 255), 5)
             cv2.circle(frame1, (int(sec_max_x), int(sec_max_y)), 8, (255, 0, 0), 5)
 
@@ -203,6 +231,19 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                 cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
                 print('No.' + str(frames))
                 return RowNumber, pre_width, pre_length, pre_LW_Ratio
+
+        # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
+        if (true_mass_xs[max_num_id] - circle_x) * (true_mass_xs[sec_max_num_id] - circle_x) > 0:
+            if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_max_num_id] * \
+                    true_mass_ys[
+                        sec_max_num_id]:
+                max_num_id = contour_areas.index(sorted_contour_areas[-2])
+                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
+
+        else:
+            if true_mass_xs[max_num_id] < true_mass_xs[sec_max_num_id]:
+                max_num_id = contour_areas.index(sorted_contour_areas[-2])
+                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
 
     if max(contour_areas) < small_area_metrics:
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
@@ -488,7 +529,7 @@ if __name__ == "__main__":
     boxheight = 10
     # --------------------------------
 
-    for frames in range(1337, 2322, 1):
+    for frames in range(215, 618, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
