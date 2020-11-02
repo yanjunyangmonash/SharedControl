@@ -22,7 +22,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
 
     # Manually set metrics (Use Clip33 as the ref)
     # For two masks classification
-    area_ratio_metrics = 10
+    area_ratio_metrics = 40
     mask_dist_metrics = (true_rad * 2) * 0.3
     end_effector_detail = (true_rad * 2) * 0.18
     tool_body_concave = (true_rad * 2) * 0.0449
@@ -167,20 +167,20 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
     max_num_id = contour_areas.index(max(contour_areas))
     if len(contour_areas) > 1 and sorted_contour_areas[-2] > small_area_metrics/5:
-        sec_num_id = contour_areas.index(sorted_contour_areas[-2])
-        if (true_mass_xs[max_num_id] - circle_x)*(true_mass_xs[sec_num_id] - circle_x) > 0:
-            if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_num_id] * true_mass_ys[
-                sec_num_id]:
+        sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
+        if (true_mass_xs[max_num_id] - circle_x)*(true_mass_xs[sec_max_num_id] - circle_x) > 0:
+            if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_max_num_id] * true_mass_ys[
+                    sec_max_num_id]:
                 max_num_id = contour_areas.index(sorted_contour_areas[-2])
+                sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
+
         else:
-            if true_mass_xs[max_num_id] < true_mass_xs[sec_num_id]:
+            if true_mass_xs[max_num_id] < true_mass_xs[sec_max_num_id]:
                 max_num_id = contour_areas.index(sorted_contour_areas[-2])
-    # cv2.drawContours(frame1, contours_number[max_num_id], -1, (255, 0, 0), 3)
-    # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
-    if sorted_contour_areas[-1] < big_area_metrics:
-        if len(contour_areas) > 1 and sorted_contour_areas[-2] != 0:
-            sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
-            #cv2.drawContours(frame1, contours_number[sec_max_num_id], -1, (0, 0, 255), 3)
+                sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
+
+        # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
+        if sorted_contour_areas[-1] < big_area_metrics:
             area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
             cv2.putText(frame1, "Area Ratio: {:.2f}%".format(area_ratio), (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
 
@@ -474,7 +474,7 @@ if __name__ == "__main__":
     # ---------------------------------
 
     # Laparoscopic view geo parameters
-    video_num = 52
+    video_num = 32
     video_constant = constant.VideoConstants()
     constant_values = video_constant.num_to_constants(video_num)()
 
@@ -488,7 +488,7 @@ if __name__ == "__main__":
     boxheight = 10
     # --------------------------------
 
-    for frames in range(3446, 4960, 1):
+    for frames in range(1337, 2322, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
