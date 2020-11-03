@@ -10,7 +10,7 @@ from utils import featurepoints as fp
 from utils import anglebisector as ab
 
 
-def calculate_distances(contours_number, excel_number, pre_width, pre_length, pre_LW_Ratio):
+def calculate_distances(contours_number, excel_number, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor):
     # Set up parameters
     contour_areas = []
     two_tools_touch = 0
@@ -147,9 +147,9 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=pre_LW_Ratio)
         RowNumber += 1
         cv2.putText(frame1, "Two tools contact together", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
-        return RowNumber, pre_width, pre_length, pre_LW_Ratio
+        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     if len(contour_areas) == 0 or max(contour_areas) < 2:
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
@@ -158,9 +158,9 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=0)
         RowNumber += 1
         cv2.putText(frame1, "No Tools on the right side", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
-        return RowNumber, pre_width, pre_length, pre_LW_Ratio
+        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     # Find max contour on the right side
     sorted_contour_areas = sorted(contour_areas)
@@ -182,7 +182,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
 
         # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
         if sorted_contour_areas[-1] < big_area_metrics:
-            if len(sorted_contour_areas) > 2:
+            if len(sorted_contour_areas) > 2 and sorted_contour_areas[-3] > small_area_metrics:
                 thr_max_num_id = contour_areas.index(sorted_contour_areas[-3])
                 max_x = true_mass_xs[max_num_id]
                 max_y = true_mass_ys[max_num_id]
@@ -228,9 +228,9 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                 sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
                 sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
                 RowNumber += 1
-                cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+                cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
                 print('No.' + str(frames))
-                return RowNumber, pre_width, pre_length, pre_LW_Ratio
+                return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
         # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
         if (true_mass_xs[max_num_id] - circle_x) * (true_mass_xs[sec_max_num_id] - circle_x) > 0:
@@ -238,12 +238,10 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                     true_mass_ys[
                         sec_max_num_id]:
                 max_num_id = contour_areas.index(sorted_contour_areas[-2])
-                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
 
         else:
             if true_mass_xs[max_num_id] < true_mass_xs[sec_max_num_id]:
                 max_num_id = contour_areas.index(sorted_contour_areas[-2])
-                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
 
     if max(contour_areas) < small_area_metrics:
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
@@ -252,9 +250,48 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
         RowNumber += 1
         cv2.putText(frame1, "right tool mask too small", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
-        return RowNumber, pre_width, pre_length, pre_LW_Ratio
+        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
+
+    # Set the first main tool coordinates
+    if main_tool == 0:
+        if pre_width != 0 or pre_width != None:
+            main_tool = 1
+            main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
+    else:
+        if assist_tool_coor[0] != 0:
+            assist_tool_move_dist = ((true_mass_xs[max_num_id] - assist_tool_coor[0]) ** 2 + (
+                        true_mass_ys[max_num_id] - assist_tool_coor[1]) ** 2) ** 0.5
+            if assist_tool_move_dist > mask_dist_metrics:
+                assist_tool_coor = (0, 0)
+                main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
+            else:
+                assist_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
+                sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
+                sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
+                sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
+                sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
+                RowNumber += 1
+                cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+                print('No.' + str(frames))
+                return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
+
+        main_tool_move_dist = ((true_mass_xs[max_num_id]-main_tool_coor[0])**2 + (true_mass_ys[max_num_id]-main_tool_coor[1])**2)**0.5
+        if main_tool_move_dist > 0:
+            if main_tool_move_dist > (true_rad * 2) * 0.5:
+                assist_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
+                sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
+                sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
+                sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
+                sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
+                RowNumber += 1
+                cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+                print('No.' + str(frames))
+                return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
+            else:
+                main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
+
 
     hull = cv2.convexHull(contours_number[max_num_id], clockwise=False, returnPoints=False)
     try:
@@ -265,9 +302,9 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
         RowNumber += 1
-        cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
-        return RowNumber, None, None, None
+        return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
 
     far_list = []
 
@@ -296,9 +333,9 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
         RowNumber += 1
-        cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
-        return RowNumber, None, None, None
+        return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
 
     else:
         if (point_dist / 256) > tool_body_concave:
@@ -348,9 +385,9 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                 sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
                 sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
                 RowNumber += 1
-                cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+                cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
                 print('No.' + str(frames))
-                return RowNumber, None, None, None
+                return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
 
     cv2.putText(frame1, "Record", (20, 120), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     # Find max contour on the right side
@@ -374,7 +411,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=0)
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=0)
         RowNumber += 1
-        return RowNumber, pre_width, pre_length, pre_LW_Ratio
+        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
     for l in range(len(centers)):
         cv2.circle(frame1, (int(centers[l][0]), int(centers[l][1])), radius=3, color=(0, 255, 0), thickness=-1)
 
@@ -448,10 +485,10 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
         sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-        cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
         RowNumber += 1
-        return RowNumber, pre_width, pre_length, pre_LW_Ratio
+        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     pointsdist = ((p2[1] - p3[1]) ** 2 + (p2[0] - p3[0]) ** 2) ** 0.5
     arclength = asin(circle_y / true_rad) * 2 * true_rad
@@ -464,16 +501,16 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     if pointsdist != 0:
         LW_Ratio = length / pointsdist
         if LW_Ratio > 4 or LW_Ratio < 0.5:
-            cv2.putText(frame1, "Strange data", (20, 80), cv2.FONT_ITALIC, 0.5,
+            cv2.putText(frame1, "Strange data", (20, 140), cv2.FONT_ITALIC, 0.5,
                         (0, 255, 0))
             sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
             sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
             sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
             sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
             RowNumber += 1
-            cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+            cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
             print('No.' + str(frames))
-            return RowNumber, None, None, None
+            return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
             LW_Ratio = 0
     else:
         LW_Ratio = 0
@@ -491,11 +528,11 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     cv2.line(frame1, (int(p5[0]), int(p5[1])), (int(p5[0]) + 900, int(p5[1] + 900 * k5)), (255, 0, 0), thickness=2)
     cv2.line(frame1, (int(p_tip1[0]), int(p_tip1[1])), (int(p_tip2[0]), int(p_tip2[1])), (0, 255, 0), thickness=2)
 
-    cv2.imwrite('E:/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
+    cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
     print('No.' + str(frames))
     cv2.waitKey(0)
 
-    return RowNumber, pre_width, pre_length, pre_LW_Ratio
+    return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
 
 if __name__ == "__main__":
@@ -512,10 +549,13 @@ if __name__ == "__main__":
     prewidth = 0
     prelength = 0
     prelwratio = 0
+    find_main_tool = 0
+    main_tool_coordinates = (0, 0)
+    assist_tool_coordinates = (0, 0)
     # ---------------------------------
 
     # Laparoscopic view geo parameters
-    video_num = 32
+    video_num = 36
     video_constant = constant.VideoConstants()
     constant_values = video_constant.num_to_constants(video_num)()
 
@@ -529,21 +569,21 @@ if __name__ == "__main__":
     boxheight = 10
     # --------------------------------
 
-    for frames in range(215, 618, 1):
+    for frames in range(206, 513, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
             folder_name = str(10 * (video_num // 10) + 1) + '-' + str(10 * (video_num // 10) + 10)
-        frame = cv2.imread('E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip' + str(video_num) + '_' + str(
+        frame = cv2.imread('C:/D/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip' + str(video_num) + '_' + str(
             frames) + 'M.jpg')
         frame1 = cv2.imread(
-            'E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1D/clip' + str(video_num) + '_' + str(
+            'C:/D/Clip' + folder_name + '/Clip' + str(video_num) + '_1D/clip' + str(video_num) + '_' + str(
                 frames) + 'D.jpg')
         mask_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         ret, contours_frame = cv2.threshold(mask_frame, 127, 255, cv2.THRESH_BINARY)
         contours, hierarchy = cv2.findContours(contours_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        Row_Number, prewidth, prelength, prelwratio = calculate_distances(contours, Row_Number, prewidth, prelength,
-                                                                          prelwratio)
+        Row_Number, prewidth, prelength, prelwratio, find_main_tool, main_tool_coordinates, assist_tool_coordinates = calculate_distances(contours, Row_Number, prewidth, prelength,
+                                                                          prelwratio, find_main_tool, main_tool_coordinates, assist_tool_coordinates)
 
     workbook.save(tablepath)
     print('Finish')
