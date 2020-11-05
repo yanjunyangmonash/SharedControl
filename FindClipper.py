@@ -168,18 +168,6 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     max_num_id = contour_areas.index(max(contour_areas))
     if len(contour_areas) > 1 and sorted_contour_areas[-2] > small_area_metrics/5:
         sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
-        # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
-        #if (true_mass_xs[max_num_id] - circle_x)*(true_mass_xs[sec_max_num_id] - circle_x) > 0:
-            #if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_max_num_id] * true_mass_ys[
-                    #sec_max_num_id]:
-                #max_num_id = contour_areas.index(sorted_contour_areas[-2])
-                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
-
-        #else:
-            #if true_mass_xs[max_num_id] < true_mass_xs[sec_max_num_id]:
-                #max_num_id = contour_areas.index(sorted_contour_areas[-2])
-                #sec_max_num_id = contour_areas.index(sorted_contour_areas[-1])
-
         # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
         if sorted_contour_areas[-1] < big_area_metrics:
             if len(sorted_contour_areas) > 2 and sorted_contour_areas[-3] > small_area_metrics:
@@ -232,6 +220,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                 print('No.' + str(frames))
                 return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
+        '''
         # Use position relationship to make sure the algorithm always tracks the correct tool (Confirm with Arvind!!!)
         if (true_mass_xs[max_num_id] - circle_x) * (true_mass_xs[sec_max_num_id] - circle_x) > 0:
             if true_mass_xs[max_num_id] * true_mass_ys[max_num_id] < true_mass_xs[sec_max_num_id] * \
@@ -242,6 +231,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
         else:
             if true_mass_xs[max_num_id] < true_mass_xs[sec_max_num_id]:
                 max_num_id = contour_areas.index(sorted_contour_areas[-2])
+        '''
 
     if max(contour_areas) < small_area_metrics:
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
@@ -285,13 +275,13 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
                 sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
                 sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
                 sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
+                cv2.putText(frame1, "Tracking wrong tools", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
                 RowNumber += 1
                 cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
                 print('No.' + str(frames))
                 return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
             else:
                 main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
-
 
     hull = cv2.convexHull(contours_number[max_num_id], clockwise=False, returnPoints=False)
     try:
@@ -555,7 +545,7 @@ if __name__ == "__main__":
     # ---------------------------------
 
     # Laparoscopic view geo parameters
-    video_num = 36
+    video_num = 52
     video_constant = constant.VideoConstants()
     constant_values = video_constant.num_to_constants(video_num)()
 
@@ -569,7 +559,7 @@ if __name__ == "__main__":
     boxheight = 10
     # --------------------------------
 
-    for frames in range(206, 513, 1):
+    for frames in range(3446, 4960, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:
