@@ -41,6 +41,10 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
     two_tools_touch, contour_areas, true_mass_xs, true_mass_ys, number = ts.tool_mask_selection(contours_number)
 
     if two_tools_touch == 1:
+        ts.touched_tools_filter(RowNumber, frames, pre_width, pre_length, pre_LW_Ratio, workbook, frame1)
+        RowNumber += 1
+        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
+        '''
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
         sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=pre_width)
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=pre_length)
@@ -50,9 +54,13 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
         cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
         main_tool = 0
-        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
+        '''
 
     if len(contour_areas) == 0 or max(contour_areas) < 2:
+        ts.left_tool_filter(RowNumber, frames, workbook, frame1)
+        RowNumber += 1
+        return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
+        '''
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
         sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=0)
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=0)
@@ -63,6 +71,7 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
         print('No.' + str(frames))
         main_tool = 0
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
+        '''
 
     # Find max contour on the right side
     sorted_contour_areas = sorted(contour_areas)
@@ -1017,7 +1026,7 @@ if __name__ == "__main__":
     boxheight = 10
     # --------------------------------
 
-    for frames in range(2, 102, 1):
+    for frames in range(2, 170, 1):
         if video_num % 10 == 0:
             folder_name = str(10 * (video_num // 10) - 9) + '-' + str(10 * (video_num // 10))
         else:

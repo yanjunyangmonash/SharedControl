@@ -155,23 +155,20 @@ def tool_mask_selection(contours_number):
     return two_tools_touch, contour_areas, true_mass_xs, true_mass_ys, number
 
 
-def left_tool_and_touched_tools_filter(tools_touch, contour_area_sets, row_num, frame_num, pre_values, workbook,
-                                       frame_mask):
-    pre_width, pre_length, pre_LW_Ratio = pre_values
-    if tools_touch == 1:
-        we.write_excel_table(frame_num, workbook, row_num, pre_width, pre_length, pre_LW_Ratio)
-        row_num += 1
-        cv2.putText(frame_mask, "Two tools contact together", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
-        print('No.' + str(frame_num))
-
-    if len(contour_area_sets) == 0 or max(contour_area_sets) < 2:
-        we.write_excel_table(frame_num, workbook, row_num, 0, 0, 0)
-        row_num += 1
-        cv2.putText(frame_mask, "No Tools on the right side", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
-        print('No.' + str(frame_num))
+def touched_tools_filter(row_num, frame_num, pre_width, pre_length, pre_LW_Ratio, workbook, frame_mask):
+    we.write_excel_table(frame_num, workbook, row_num, pre_width, pre_length, pre_LW_Ratio)
+    row_num += 1
+    cv2.putText(frame_mask, "Two tools contact together", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+    cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
+    print('No.' + str(frame_num))
     return row_num
+
+
+def left_tool_filter(row_num, frame_num, workbook, frame_mask):
+    we.write_excel_table(frame_num, workbook, row_num, 0, 0, 0)
+    cv2.putText(frame_mask, "No Tools on the right side", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+    cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
+    print('No.' + str(frame_num))
 
 
 def find_max_right_tool_contour(frame_num, contour_area_sets, mass_xs, mass_ys, frame_mask, thr_max_id, workbook, row_num):
