@@ -171,6 +171,14 @@ def left_tool_filter(row_num, frame_num, workbook, frame_mask):
     print('No.' + str(frame_num))
 
 
+def noise_filter(frame_num, frame_mask, workbook, row_num):
+    # Filter out very small masks
+    we.write_excel_table(frame_num, workbook, row_num)
+    cv2.putText(frame_mask, "right tool mask too small", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+    cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
+    print('No.' + str(frame_num))
+
+
 def end_effector_filter(frame_num, frame_mask, contour_area_sets, mass_xs, mass_ys, workbook, row_num):
     def get_potential_ee(dist1, dist2=0, three_tools=1):
         if three_tools:

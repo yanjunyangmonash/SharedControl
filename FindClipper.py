@@ -57,6 +57,7 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
 
 
     if max(contour_areas) < small_area_metrics:
+        '''
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
         sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
         sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
@@ -65,6 +66,9 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
         cv2.putText(frame1, "right tool mask too small", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
         cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
         print('No.' + str(frames))
+        '''
+        ts.noise_filter(frames, frame1, workbook, RowNumber)
+        RowNumber += 1
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     # Set the first main tool coordinates
