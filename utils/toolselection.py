@@ -109,7 +109,7 @@ def tool_mask_selection(contours_number):
         box_size = cv2.boxPoints(rect)
         box_h = abs(((box_size[0][0] - box_size[1][0]) ** 2 + (box_size[0][1] - box_size[1][1]) ** 2) ** 0.5)
         box_w = abs(((box_size[1][0] - box_size[2][0]) ** 2 + (box_size[1][1] - box_size[2][1]) ** 2) ** 0.5)
-        #box_size = np.int0(box_size)
+        # box_size = np.int0(box_size)
         # cv2.drawContours(frame1, [box_size], 0, (0, 255, 255), 3)
         number.append(num_of_contours)
         true_mass_xs.append(mass_centres_x)
@@ -156,26 +156,26 @@ def tool_mask_selection(contours_number):
 
 
 def touched_tools_filter(row_num, frame_num, pre_width, pre_length, pre_LW_Ratio, workbook, frame_mask):
+    # Filter out touched tools mask
     we.write_excel_table(frame_num, workbook, row_num, pre_width, pre_length, pre_LW_Ratio)
-    row_num += 1
     cv2.putText(frame_mask, "Two tools contact together", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
     print('No.' + str(frame_num))
-    return row_num
 
 
 def left_tool_filter(row_num, frame_num, workbook, frame_mask):
+    # Filter out auxiliary tool mask
     we.write_excel_table(frame_num, workbook, row_num, 0, 0, 0)
     cv2.putText(frame_mask, "No Tools on the right side", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
     print('No.' + str(frame_num))
 
 
-def find_max_right_tool_contour(frame_num, contour_area_sets, mass_xs, mass_ys, frame_mask, thr_max_id, workbook, row_num):
+def end_effector_filter(frame_num, frame_mask, contour_area_sets, mass_xs, mass_ys, workbook, row_num):
     def get_potential_ee(dist1, dist2=0, three_tools=1):
-        sorted_contour_areas = sorted(contour_area_sets)
         if three_tools:
             if dist1 > dist2:
+                thr_max_id = contour_area_sets.index(sorted_contour_areas[-3])
                 area_ratio = sorted_contour_areas[-3] / sorted_contour_areas[-2] * 100
                 max_x = mass_xs[sec_max_num_id]
                 max_y = mass_ys[sec_max_num_id]
@@ -203,37 +203,36 @@ def find_max_right_tool_contour(frame_num, contour_area_sets, mass_xs, mass_ys, 
             thr_max_x = mass_xs[thr_max_num_id]
             thr_max_y = mass_ys[thr_max_num_id]
             mask_dist2 = ((sec_max_x - thr_max_x) ** 2 + (sec_max_y - thr_max_y) ** 2) ** 0.5
-            returned_value = get_potential_ee(mask_dist1, mask_dist2, three_tools=1)
+            masks_geometric_relation = get_potential_ee(mask_dist1, mask_dist2, three_tools=1)
         else:
-            returned_value = get_potential_ee(mask_dist1, three_tools=0)
-        return returned_value
-
+            masks_geometric_relation = get_potential_ee(mask_dist1, three_tools=0)
+        return masks_geometric_relation
 
     sorted_contour_areas = sorted(contour_area_sets)
     max_num_id = contour_area_sets.index(max(contour_area_sets))
-    # If there are multiple masks, and all first three masks are not noise,
-    # we compare the closest two masks among three
+    sec_max_num_id = 0
+    only_ee = 0
+    # If there are multiple masks, and three max masks are not noise, we compare the closest two masks among three
     # to decide whether these are end effectors or two different tools
     # small_area_metrics is the min value to be not considered as noise
     if len(contour_area_sets) > 1 and sorted_contour_areas[-2] > small_area_metrics:
         sec_max_num_id = contour_area_sets.index(sorted_contour_areas[-2])
-        # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
+        # big_area_metrics is the min value to be not considered as an end-effector's mask
         if sorted_contour_areas[-1] < big_area_metrics:
             returned_values = find_two_max_masks()
 
             # Draw notes on the image
-            cv2.putText(frame_mask, "Area Ratio: {:.2f}%".format(returned_values[0]), (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+            cv2.putText(frame_mask, "Area Ratio: {:.2f}%".format(returned_values[0]), (20, 20), cv2.FONT_ITALIC, 0.5,
+                        (0, 255, 0))
             cv2.circle(frame_mask, (int(returned_values[1]), int(returned_values[2])), 8, (0, 0, 255), 5)
             cv2.circle(frame_mask, (int(returned_values[3]), int(returned_values[4])), 8, (255, 0, 0), 5)
 
-            # If selected two masks has similar size aand very close, they will be considered as ee part of the tool
+            # If selected two masks has similar size and very close, assume mask only has ee part
             if returned_values[0] > area_ratio_metrics and returned_values[5] < mask_dist_metrics:
                 cv2.putText(frame_mask, "Only have end effector", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
                 we.write_excel_table(frame_num, workbook, row_num)
-                row_num += 1
                 cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
                 print('No.' + str(frame_num))
-                return row_num
-
-
-
+                only_ee = 1
+                return only_ee, None, None
+    return only_ee, max_num_id, sec_max_num_id

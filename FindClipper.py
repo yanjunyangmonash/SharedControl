@@ -12,8 +12,9 @@ from utils import write_excel as we
 from utils import toolselection as ts
 
 
-def calculate_distances_test(contours_number, excel_number, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor,
-                        assist_tool_coor):
+def calculate_distances_test(contours_number, excel_number, pre_width, pre_length, pre_LW_Ratio, main_tool,
+                             main_tool_coor,
+                             assist_tool_coor):
     # Set up parameters
     contour_areas = []
     two_tools_touch = 0
@@ -37,101 +38,23 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
     small_area_metrics = lapview_area * 0.03
     big_area_metrics = small_area_metrics * 3
 
-
     two_tools_touch, contour_areas, true_mass_xs, true_mass_ys, number = ts.tool_mask_selection(contours_number)
 
     if two_tools_touch == 1:
         ts.touched_tools_filter(RowNumber, frames, pre_width, pre_length, pre_LW_Ratio, workbook, frame1)
         RowNumber += 1
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
-        '''
-        sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=pre_width)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=pre_length)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=pre_LW_Ratio)
-        RowNumber += 1
-        cv2.putText(frame1, "Two tools contact together", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-        print('No.' + str(frames))
-        main_tool = 0
-        '''
 
     if len(contour_areas) == 0 or max(contour_areas) < 2:
         ts.left_tool_filter(RowNumber, frames, workbook, frame1)
         RowNumber += 1
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
-        '''
-        sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=0)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=0)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=0)
+
+    have_ee, max_num_id, sec_max_num_id = ts.end_effector_filter(frames, frame1, contour_areas, true_mass_xs, true_mass_ys, workbook, Row_Number)
+    if have_ee:
         RowNumber += 1
-        cv2.putText(frame1, "No Tools on the right side", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-        print('No.' + str(frames))
-        main_tool = 0
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
-        '''
 
-    # Find max contour on the right side
-    sorted_contour_areas = sorted(contour_areas)
-    max_num_id = contour_areas.index(max(contour_areas))
-
-    # If there are multiple masks, and all first three masks are not noise, we compare the closest two masks among three
-    # to decide whether these are end effectors or two different tools
-    if len(contour_areas) > 1 and sorted_contour_areas[-2] > small_area_metrics:
-        sec_max_num_id = contour_areas.index(sorted_contour_areas[-2])
-        # If the mask area is big enough, it shouldn't be considered as an end-effector's mask
-        if sorted_contour_areas[-1] < big_area_metrics:
-            if len(sorted_contour_areas) > 2 and sorted_contour_areas[-3] > small_area_metrics:
-                thr_max_num_id = contour_areas.index(sorted_contour_areas[-3])
-                max_x = true_mass_xs[max_num_id]
-                max_y = true_mass_ys[max_num_id]
-                sec_max_x = true_mass_xs[sec_max_num_id]
-                sec_max_y = true_mass_ys[sec_max_num_id]
-                thr_max_x = true_mass_xs[thr_max_num_id]
-                thr_max_y = true_mass_ys[thr_max_num_id]
-                mask_dist1 = ((max_x - sec_max_x) ** 2 + (max_y - sec_max_y) ** 2) ** 0.5
-                mask_dist2 = ((sec_max_x - thr_max_x) ** 2 + (sec_max_y - thr_max_y) ** 2) ** 0.5
-
-                if mask_dist1 > mask_dist2:
-                    area_ratio = sorted_contour_areas[-3] / sorted_contour_areas[-2] * 100
-                    max_x = true_mass_xs[sec_max_num_id]
-                    max_y = true_mass_ys[sec_max_num_id]
-                    sec_max_x = true_mass_xs[thr_max_num_id]
-                    sec_max_y = true_mass_ys[thr_max_num_id]
-                    mask_dist = mask_dist2
-
-                else:
-                    area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
-                    max_x = true_mass_xs[max_num_id]
-                    max_y = true_mass_ys[max_num_id]
-                    sec_max_x = true_mass_xs[sec_max_num_id]
-                    sec_max_y = true_mass_ys[sec_max_num_id]
-                    mask_dist = mask_dist1
-
-            else:
-                area_ratio = sorted_contour_areas[-2] / max(contour_areas) * 100
-                max_x = true_mass_xs[max_num_id]
-                max_y = true_mass_ys[max_num_id]
-                sec_max_x = true_mass_xs[sec_max_num_id]
-                sec_max_y = true_mass_ys[sec_max_num_id]
-                mask_dist = ((max_x - sec_max_x) ** 2 + (max_y - sec_max_y) ** 2) ** 0.5
-
-            cv2.putText(frame1, "Area Ratio: {:.2f}%".format(area_ratio), (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-            cv2.circle(frame1, (int(max_x), int(max_y)), 8, (0, 0, 255), 5)
-            cv2.circle(frame1, (int(sec_max_x), int(sec_max_y)), 8, (255, 0, 0), 5)
-
-            if area_ratio > area_ratio_metrics and mask_dist < mask_dist_metrics:
-                cv2.putText(frame1, "Only have end effector", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-                sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-                sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-                sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-                sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-                RowNumber += 1
-                cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-                print('No.' + str(frames))
-                return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     if max(contour_areas) < small_area_metrics:
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
@@ -455,6 +378,7 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
     cv2.waitKey(0)
 
     return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
+
 
 def calculate_distances(contours_number, excel_number, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor,
                         assist_tool_coor):
@@ -987,6 +911,7 @@ def calculate_distances(contours_number, excel_number, pre_width, pre_length, pr
     cv2.waitKey(0)
 
     return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
+
 
 if __name__ == "__main__":
     # Excel setup
