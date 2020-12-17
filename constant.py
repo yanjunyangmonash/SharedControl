@@ -1,4 +1,3 @@
-
 class VideoConstants(object):
     def num_to_constants(self, video_num):
         fun_name = "video_num_" + str(video_num)
