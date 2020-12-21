@@ -16,11 +16,6 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
                              main_tool_coor,
                              assist_tool_coor):
     # Set up parameters
-    contour_areas = []
-    two_tools_touch = 0
-    true_mass_xs = []
-    true_mass_ys = []
-    number = []
     RowNumber = excel_number
     ColumnNumber = 1
 
@@ -63,118 +58,25 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     # Set the first main tool coordinates
-    start_new_loop, RowNumber, main_tool_coor, assist_tool_coor, max_num_id = ts.main_tool_tracker(RowNumber, frames,
-                                                                                                   pre_width, workbook,
-                                                                                                   frame1, main_tool,
-                                                                                                   contour_areas,
-                                                                                                   true_mass_xs,
-                                                                                                   true_mass_ys,
-                                                                                                   max_num_id,
-                                                                                                   sec_max_num_id,
-                                                                                                   main_tool_coor,
-                                                                                                   assist_tool_coor)
-    if start_new_loop == 0:
+    continue_process, main_tool_coor, assist_tool_coor, max_num_id = ts.main_tool_tracker(RowNumber, frames,
+                                                                                          pre_width, workbook,
+                                                                                          frame1, main_tool,
+                                                                                          contour_areas,
+                                                                                          true_mass_xs,
+                                                                                          true_mass_ys,
+                                                                                          max_num_id,
+                                                                                          sec_max_num_id,
+                                                                                          main_tool_coor,
+                                                                                          assist_tool_coor)
+    if continue_process == 0:
         RowNumber += 1
         return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
 
-    hull = cv2.convexHull(contours_number[max_num_id], clockwise=False, returnPoints=False)
-    try:
-        defects = cv2.convexityDefects(contours_number[max_num_id], hull)
-    except cv2.error as e:
-        sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
+    interrupt_loop = ts.bad_main_tool_mask_filter(contours_number, max_num_id, frames, frame1, workbook, RowNumber)
+    if interrupt_loop:
         RowNumber += 1
-        cv2.putText(frame1, "Hull defects error", (20, 140), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-        print('No.' + str(frames))
         return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
 
-    far_list = []
-
-    for j in range(defects.shape[0]):
-        s, e, f, d = defects[j, 0]
-        point_dist = np.int(d)
-        far_list.append(point_dist)
-
-    new_list = sorted(far_list)
-    max_number = far_list.index(new_list[-1])
-    s, e, f, d = defects[max_number, 0]
-    far = tuple(contours_number[max_num_id][f][0])
-    start = tuple(contours_number[max_num_id][s][0])
-    end = tuple(contours_number[max_num_id][e][0])
-    point_dist = np.int(d)
-    cv2.line(frame1, start, end, (0, 225, 0), 2)
-    cv2.circle(frame1, far, 8, (0, 255, 0), 5)
-
-    cv2.putText(frame1, "Farthest dist: {:.2f}".format(point_dist / 256), (20, 60), cv2.FONT_ITALIC, 0.5,
-                (0, 255, 0))
-
-    if (point_dist / 256) > end_effector_detail:
-        cv2.putText(frame1, "Longer than end_effector_detail, Dont record", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-        RowNumber += 1
-        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-        print('No.' + str(frames))
-        return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
-
-    else:
-        if (point_dist / 256) > tool_body_concave:
-            cv2.circle(frame1, start, 8, (255, 255, 0), 5)
-            cv2.circle(frame1, end, 8, (0, 255, 0), 5)
-            cv2.putText(frame1, "Consider", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-
-            k_start = abs((far[1] - start[1]) / (far[0] - start[0]))
-            k_end = abs((far[1] - end[1]) / (far[0] - end[0]))
-
-            if k_start > k_end:
-                if k_end / k_start < k_ratio:
-                    pt1 = end
-                    pt2 = far
-                else:
-                    pt1 = ((end[0] + start[0]) / 2, (end[1] + start[1]) / 2)
-                    pt2 = far
-            else:
-                if k_start / k_end < k_ratio:
-                    pt1 = start
-                    pt2 = far
-                else:
-                    pt1 = ((end[0] + start[0]) / 2, (end[1] + start[1]) / 2)
-                    pt2 = far
-            far_to_effector = ((far[0] - pt1[0]) ** 2 + (far[1] - pt1[1]) ** 2) ** 0.5
-
-            circle_cen = (circle_x, circle_y)
-            circle_rad = true_rad
-            new_point = GC.circle_line_segment_intersection(circle_cen, circle_rad, pt1, pt2, full_line=True,
-                                                            tangent_tol=1e-9)
-            if new_point[0][0] > new_point[1][0]:
-                new_point = (new_point[0][0], new_point[0][1])
-            else:
-                new_point = (new_point[1][0], new_point[1][1])
-            cv2.line(frame1, far, (int(new_point[0]), int(new_point[1])), (0, 0, 225), 2)
-
-            far_to_edge = ((far[0] - new_point[0]) ** 2 + (far[1] - new_point[1]) ** 2) ** 0.5
-            length_ratio = far_to_effector / far_to_edge * 100
-            cv2.putText(frame1, "effector length ratio: {:.2f}".format(length_ratio), (20, 100), cv2.FONT_ITALIC,
-                        0.5,
-                        (0, 255, 0))
-            if length_ratio >= length_ratio_metrics:
-                cv2.putText(frame1, "Longer than length_ratio_metrics, Dont record", (20, 120), cv2.FONT_ITALIC, 0.5,
-                            (0, 255, 0))
-                sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-                sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-                sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-                sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-                RowNumber += 1
-                cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-                print('No.' + str(frames))
-                return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
-
-    cv2.putText(frame1, "Record", (20, 120), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     # Find max contour on the right side
     true_mass_x = true_mass_xs[max_num_id]
     true_mass_y = true_mass_ys[max_num_id]

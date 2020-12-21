@@ -3,6 +3,7 @@ from math import atan2, asin, pi
 import cv2
 import numpy as np
 from utils import write_excel as we
+from utils import GeoCalculation as GC
 
 # Laparoscopic view geo parameters
 video_num = 50
@@ -304,7 +305,7 @@ def main_tool_tracker(row_num, frame_num, pre_width, workbook, frame_mask, has_m
                 if len(contour_area_sets) > 1 and sorted_contour_areas[-2] > small_area_metrics / 5:
                     main_tool_move_dist1 = cal_tools_move_dist(mass_xs[sec_max_num_id], mass_ys[sec_max_num_id],
                                                                main_coor)
-                    if main_tool_move_dist1 > (true_rad) * 0.75:
+                    if main_tool_move_dist1 > true_rad * 0.75:
                         track_main_tool = 1
                         save_no_main_tool_data("Can't locate the main tool in multiple masks")
                     else:
@@ -322,8 +323,115 @@ def main_tool_tracker(row_num, frame_num, pre_width, workbook, frame_mask, has_m
     # When no primary tool in the view, but doesn't consider the assist tool???
     if has_main_tool == 0:
         has_main_tool, main_coor = locate_new_main_tool()
-        return has_main_tool, row_num, main_coor, assist_coor, max_num_id
+        return has_main_tool, main_coor, assist_coor, max_num_id
     # When the tool is already in the view
     else:
         get_main_tool, assist_coor, main_coor, max_num_id = current_tool_coor()
-        return has_main_tool, row_num, main_coor, assist_coor, max_num_id
+        return has_main_tool, main_coor, assist_coor, max_num_id
+
+
+def bad_main_tool_mask_filter(contours_number, max_num_id, frame_num, frame_mask, workbook, row_num):
+    def save_no_main_tool_data(text, text_height):
+        we.write_excel_table(frame_num, workbook, row_num)
+        cv2.putText(frame_mask, text, (20, text_height), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
+        print('No.' + str(frame_num))
+
+    def get_contour_defects():
+        interrupt_loop = 0
+        hull = cv2.convexHull(contours_number[max_num_id], clockwise=False, returnPoints=False)
+        try:
+            defects = cv2.convexityDefects(contours_number[max_num_id], hull)
+        except cv2.error:
+            save_no_main_tool_data("Hull defects error", 140)
+            interrupt_loop = 1
+        return interrupt_loop, defects
+
+    def get_ee_convex(contour_defects):
+        far_list = []
+
+        for j in range(contour_defects.shape[0]):
+            s, e, f, d = contour_defects[j, 0]
+            point_dist = np.int(d)
+            far_list.append(point_dist)
+
+        new_list = sorted(far_list)
+        max_number = far_list.index(new_list[-1])
+        s, e, f, d = contour_defects[max_number, 0]
+        far = tuple(contours_number[max_num_id][f][0])
+        start = tuple(contours_number[max_num_id][s][0])
+        end = tuple(contours_number[max_num_id][e][0])
+        point_dist = np.int(d)
+        cv2.line(frame_mask, start, end, (0, 225, 0), 2)
+        cv2.circle(frame_mask, far, 8, (0, 255, 0), 5)
+        # use 256 to convert point_dist to dist with pixel unit
+        cv2.putText(frame_mask, "Farthest dist: {:.2f}".format(point_dist / 256), (20, 60), cv2.FONT_ITALIC, 0.5,
+                    (0, 255, 0))
+        return point_dist / 256, far, start, end
+
+    def get_ee_and_far_points(p_far, p_start, p_end):
+        k_start = abs((p_far[1] - p_start[1]) / (p_far[0] - p_start[0]))
+        k_end = abs((p_far[1] - p_end[1]) / (p_far[0] - p_end[0]))
+        if k_start > k_end:
+            if k_end / k_start < k_ratio:
+                pt1 = p_end
+            else:
+                pt1 = ((p_end[0] + p_start[0]) / 2, (p_end[1] + p_start[1]) / 2)
+        else:
+            if k_start / k_end < k_ratio:
+                pt1 = p_start
+            else:
+                pt1 = ((p_end[0] + p_start[0]) / 2, (p_end[1] + p_start[1]) / 2)
+        return pt1
+
+    def get_ee_to_body_ratio(point_far, point_1):
+        far_to_effector = ((point_far[0] - point_1[0]) ** 2 + (point_far[1] - point_1[1]) ** 2) ** 0.5
+        circle_cen = (circle_x, circle_y)
+        circle_rad = true_rad
+        new_point = GC.circle_line_segment_intersection(circle_cen, circle_rad, point_1, point_far, full_line=True,
+                                                        tangent_tol=1e-9)
+        if new_point[0][0] > new_point[1][0]:
+            new_point = (new_point[0][0], new_point[0][1])
+        else:
+            new_point = (new_point[1][0], new_point[1][1])
+        cv2.line(frame_mask, point_far, (int(new_point[0]), int(new_point[1])), (0, 0, 225), 2)
+
+        far_to_edge = ((point_far[0] - new_point[0]) ** 2 + (point_far[1] - new_point[1]) ** 2) ** 0.5
+        length_ratio = far_to_effector / far_to_edge * 100
+        cv2.putText(frame_mask, "effector length ratio: {:.2f}".format(length_ratio), (20, 100), cv2.FONT_ITALIC,
+                    0.5, (0, 255, 0))
+        return length_ratio
+
+    def pick_good_mask(dist_far_to_ee, point_far, point_start, point_end):
+        interrupt_looping = 0
+        if dist_far_to_ee > end_effector_detail:
+            save_no_main_tool_data("Longer than end_effector_detail, pass", 80)
+            interrupt_looping = 1
+        else:
+            if (dist_far_to_ee) > tool_body_concave:
+                cv2.circle(frame_mask, point_start, 8, (255, 255, 0), 5)
+                cv2.circle(frame_mask, point_end, 8, (0, 255, 0), 5)
+                cv2.putText(frame_mask, "Shorter than end_effector_detail, consider", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+                pt1 = get_ee_and_far_points(point_far, point_start, point_end)
+                length_ratio = get_ee_to_body_ratio(point_far, pt1)
+                if length_ratio >= length_ratio_metrics:
+                    save_no_main_tool_data("Longer than length_ratio_metrics, pass", 120)
+                    interrupt_looping = 1
+        if interrupt_looping == 0:
+            cv2.putText(frame_mask, "Record", (20, 120), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+        return interrupt_looping
+
+    interrupt_loop, defects = get_contour_defects()
+    if interrupt_loop:
+        return 1
+    point_dist, far, start, end = get_ee_convex(defects)
+    interrupt_loop = pick_good_mask(point_dist, far, start, end)
+    if interrupt_loop:
+        return 1
+    else:
+        return 0
+
+
+
+
+
