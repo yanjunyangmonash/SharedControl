@@ -33,7 +33,7 @@ small_area_metrics = lapview_area * 0.03
 big_area_metrics = small_area_metrics * 3
 
 
-def tool_mask_selection(contours_number):
+def valid_mask_collector(contours_number):
     # This function is used to classify masks in a image into primary tool, auxiliary tool, touched tools and no tool
     # Set up parameters
     contour_areas = []
@@ -244,3 +244,86 @@ def end_effector_filter(frame_num, frame_mask, contour_area_sets, mass_xs, mass_
                 only_ee = 1
                 return only_ee, None, None
     return only_ee, max_num_id, sec_max_num_id
+
+
+def main_tool_tracker(row_num, frame_num, pre_width, workbook, frame_mask, has_main_tool, contour_area_sets, mass_xs,
+                      mass_ys, max_num_id, sec_max_num_id, main_coor, assist_coor):
+    # This func is used to track the primary tool
+    # includes the situation when it rejoins the view and has a smaller area
+    def cal_tools_move_dist(t1_x, t1_y, t2):
+        tool_move_dist = ((t1_x - t2[0]) ** 2 + (t1_y - t2[1]) ** 2) ** 0.5
+        return tool_move_dist
+
+    def save_no_main_tool_data(text):
+        we.write_excel_table(frame_num, workbook, row_num)
+        cv2.putText(frame_mask, text, (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
+        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
+        print('No.' + str(frame_num))
+
+    def locate_new_main_tool():
+        has_main_tool = 0
+        main_tool_coor = main_coor
+        if pre_width != 0 or pre_width is not None:
+            if mass_xs[max_num_id] > circle_x:
+                has_main_tool = 1
+                main_tool_coor = (mass_xs[max_num_id], mass_ys[max_num_id])
+            else:
+                save_no_main_tool_data("Main tool is not on the right side")
+        return has_main_tool, main_tool_coor
+
+    def current_tool_coor():
+        assist_tool_coor = (0, 0)
+        main_tool_coor = main_coor
+        new_max_num_id = max_num_id
+        track_main_tool = 1
+        # If the assist tool has the max area in the last frame
+        if assist_coor[0] != 0:
+            # Determine if the assist tool is still the max mask in the view
+            assist_tool_move_dist = cal_tools_move_dist(mass_xs[max_num_id], mass_ys[max_num_id], assist_coor)
+            if assist_tool_move_dist > mask_dist_metrics:
+                main_tool_coor = (mass_xs[max_num_id], mass_ys[max_num_id])
+            else:
+                if len(contour_area_sets) > 1 and sorted_contour_areas[-2] > small_area_metrics / 5:
+                    # Use main tool move distance but no original assist tool move distance any more
+                    main_tool_movement = cal_tools_move_dist(mass_xs[sec_max_num_id], mass_ys[sec_max_num_id],
+                                                             main_coor)
+                    if main_tool_movement < mask_dist_metrics:
+                        main_tool_coor = (mass_xs[sec_max_num_id], mass_ys[sec_max_num_id])
+                else:
+                    # how to set the main tool coor here?
+                    # If new main tool shows, we assign it the coor that not the assist tool's coor
+                    # Need to change the locate_new_main_tool func
+                    # If need to empty main tool coor, do it here
+                    track_main_tool = 1
+                    assist_tool_coor = (mass_xs[max_num_id], mass_ys[max_num_id])
+                    save_no_main_tool_data("Only have the assist tool")
+        else:
+            main_tool_movement = cal_tools_move_dist(mass_xs[max_num_id], mass_ys[max_num_id], main_coor)
+            if main_tool_movement > true_rad * 0.75:
+                assist_tool_coor = (mass_xs[max_num_id], mass_ys[max_num_id])
+                if len(contour_area_sets) > 1 and sorted_contour_areas[-2] > small_area_metrics / 5:
+                    main_tool_move_dist1 = cal_tools_move_dist(mass_xs[sec_max_num_id], mass_ys[sec_max_num_id],
+                                                               main_coor)
+                    if main_tool_move_dist1 > (true_rad) * 0.75:
+                        track_main_tool = 1
+                        save_no_main_tool_data("Can't locate the main tool in multiple masks")
+                    else:
+                        new_max_num_id = sec_max_num_id
+                        main_tool_coor = (mass_xs[new_max_num_id], mass_ys[new_max_num_id])
+                else:
+                    track_main_tool = 1
+                    save_no_main_tool_data("Main tool is out of the view")
+            else:
+                main_tool_coor = (mass_xs[max_num_id], mass_ys[max_num_id])
+
+        return track_main_tool, assist_tool_coor, main_tool_coor, new_max_num_id
+
+    sorted_contour_areas = sorted(contour_area_sets)
+    # When no primary tool in the view, but doesn't consider the assist tool???
+    if has_main_tool == 0:
+        has_main_tool, main_coor = locate_new_main_tool()
+        return has_main_tool, row_num, main_coor, assist_coor, max_num_id
+    # When the tool is already in the view
+    else:
+        get_main_tool, assist_coor, main_coor, max_num_id = current_tool_coor()
+        return has_main_tool, row_num, main_coor, assist_coor, max_num_id

@@ -38,7 +38,8 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
     small_area_metrics = lapview_area * 0.03
     big_area_metrics = small_area_metrics * 3
 
-    two_tools_touch, contour_areas, true_mass_xs, true_mass_ys, number = ts.tool_mask_selection(contours_number)
+    two_tools_touch, contour_areas, true_mass_xs, true_mass_ys, number = ts.valid_mask_collector(contours_number)
+    sorted_contour_areas = sorted(contour_areas)
 
     if two_tools_touch == 1:
         ts.touched_tools_filter(RowNumber, frames, pre_width, pre_length, pre_LW_Ratio, workbook, frame1)
@@ -50,102 +51,31 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
         RowNumber += 1
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
-    have_ee, max_num_id, sec_max_num_id = ts.end_effector_filter(frames, frame1, contour_areas, true_mass_xs, true_mass_ys, workbook, Row_Number)
+    have_ee, max_num_id, sec_max_num_id = ts.end_effector_filter(frames, frame1, contour_areas, true_mass_xs,
+                                                                 true_mass_ys, workbook, RowNumber)
     if have_ee:
         RowNumber += 1
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
-
     if max(contour_areas) < small_area_metrics:
-        '''
-        sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-        RowNumber += 1
-        cv2.putText(frame1, "right tool mask too small", (20, 40), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-        print('No.' + str(frames))
-        '''
         ts.noise_filter(frames, frame1, workbook, RowNumber)
         RowNumber += 1
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     # Set the first main tool coordinates
-    if main_tool == 0:
-        if pre_width != 0 or pre_width != None:
-            if true_mass_xs[max_num_id] > circle_x:
-                main_tool = 1
-                main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
-            else:
-                sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-                sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-                sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-                sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-                RowNumber += 1
-                cv2.putText(frame1, "Can't locate main tool", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-                cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-                print('No.' + str(frames))
-                return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
-    else:
-        if assist_tool_coor[0] != 0:
-            assist_tool_move_dist = ((true_mass_xs[max_num_id] - assist_tool_coor[0]) ** 2 + (
-                    true_mass_ys[max_num_id] - assist_tool_coor[1]) ** 2) ** 0.5
-            if assist_tool_move_dist > mask_dist_metrics:
-                assist_tool_coor = (0, 0)
-                main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
-            else:
-                if len(contour_areas) > 1 and sorted_contour_areas[-2] > small_area_metrics / 5:
-                    assist_tool_move_dist1 = ((true_mass_xs[sec_max_num_id] - assist_tool_coor[0]) ** 2 + (
-                            true_mass_ys[sec_max_num_id] - assist_tool_coor[1]) ** 2) ** 0.5
-                    if assist_tool_move_dist1 > mask_dist_metrics:
-                        assist_tool_coor = (0, 0)
-                        main_tool_coor = (true_mass_xs[sec_max_num_id], true_mass_ys[sec_max_num_id])
-                else:
-                    assist_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
-                    sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-                    sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-                    sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-                    sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-                    RowNumber += 1
-                    cv2.putText(frame1, "Can't find correct tools", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-                    cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-                    print('No.' + str(frames))
-                    return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
-
-        main_tool_move_dist = ((true_mass_xs[max_num_id] - main_tool_coor[0]) ** 2 + (
-                true_mass_ys[max_num_id] - main_tool_coor[1]) ** 2) ** 0.5
-        if main_tool_move_dist > 0:
-            if main_tool_move_dist > (true_rad) * 0.75:
-                assist_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
-                if len(contour_areas) > 1 and sorted_contour_areas[-2] > small_area_metrics / 5:
-                    main_tool_move_dist1 = ((true_mass_xs[sec_max_num_id] - main_tool_coor[0]) ** 2 + (
-                            true_mass_ys[sec_max_num_id] - main_tool_coor[1]) ** 2) ** 0.5
-                    if main_tool_move_dist1 > (true_rad) * 0.75:
-                        sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-                        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-                        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-                        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-                        cv2.putText(frame1, "Tracking wrong tools", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-                        RowNumber += 1
-                        cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-                        print('No.' + str(frames))
-                        return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
-                    else:
-                        max_num_id = sec_max_num_id
-                        main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
-                else:
-                    sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-                    sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
-                    sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
-                    sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
-                    cv2.putText(frame1, "Tracking wrong tools", (20, 80), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
-                    RowNumber += 1
-                    cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frames) + '.jpg', frame1)
-                    print('No.' + str(frames))
-                    return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
-            else:
-                main_tool_coor = (true_mass_xs[max_num_id], true_mass_ys[max_num_id])
+    start_new_loop, RowNumber, main_tool_coor, assist_tool_coor, max_num_id = ts.main_tool_tracker(RowNumber, frames,
+                                                                                                   pre_width, workbook,
+                                                                                                   frame1, main_tool,
+                                                                                                   contour_areas,
+                                                                                                   true_mass_xs,
+                                                                                                   true_mass_ys,
+                                                                                                   max_num_id,
+                                                                                                   sec_max_num_id,
+                                                                                                   main_tool_coor,
+                                                                                                   assist_tool_coor)
+    if start_new_loop == 0:
+        RowNumber += 1
+        return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
 
     hull = cv2.convexHull(contours_number[max_num_id], clockwise=False, returnPoints=False)
     try:
