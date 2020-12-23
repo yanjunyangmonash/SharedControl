@@ -4,9 +4,11 @@ import cv2
 import numpy as np
 from utils import write_excel as we
 from utils import GeoCalculation as GC
+from FindClipper import video_num
+
 
 # Laparoscopic view geo parameters
-video_num = 50
+video_num = video_num
 video_constant = constant.VideoConstants()
 constant_values = video_constant.num_to_constants(video_num)()
 
