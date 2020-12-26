@@ -48,7 +48,7 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
 
     # Set the first main tool coordinates
-    continue_process, main_tool_coor, assist_tool_coor, max_num_id = ts.main_tool_tracker(RowNumber, frames,
+    main_tool, main_tool_coor, assist_tool_coor, max_num_id = ts.main_tool_tracker(RowNumber, frames,
                                                                                           pre_width, workbook,
                                                                                           frame1, main_tool,
                                                                                           contour_areas,
@@ -58,7 +58,7 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
                                                                                           sec_max_num_id,
                                                                                           main_tool_coor,
                                                                                           assist_tool_coor)
-    if continue_process == 0:
+    if main_tool == 0:
         RowNumber += 1
         return RowNumber, None, None, None, main_tool, main_tool_coor, assist_tool_coor
 
@@ -84,9 +84,9 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
     centers, have_centers = k.kmeans_algorithm(points)
     if have_centers == 0:
         sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
-        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=0)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=0)
-        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=0)
+        sheet.cell(row=RowNumber, column=ColumnNumber + 1, value=None)
+        sheet.cell(row=RowNumber, column=ColumnNumber + 2, value=None)
+        sheet.cell(row=RowNumber, column=ColumnNumber + 3, value=None)
         RowNumber += 1
         return RowNumber, pre_width, pre_length, pre_LW_Ratio, main_tool, main_tool_coor, assist_tool_coor
     for l in range(len(centers)):
@@ -185,6 +185,7 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
             LW_Ratio = 0
     else:
         LW_Ratio = 0
+    LW_Ratio = LW_Ratio/pointsdist
     pre_LW_Ratio = LW_Ratio
 
     sheet.cell(row=RowNumber, column=ColumnNumber, value=('No.' + str(frames)))
@@ -209,9 +210,9 @@ def calculate_distances_test(contours_number, excel_number, pre_width, pre_lengt
 global video_num
 global start_frame
 global end_frame
-video_num = 41
-start_frame = 860
-end_frame = 1170
+video_num = 78
+start_frame = 2
+end_frame = 832
 if __name__ == "__main__":
     # Excel setup
     tablepath = 'Clip16_AngleTest5120-5640SL.xlsx'
@@ -246,7 +247,7 @@ if __name__ == "__main__":
         else:
             folder_name = str(10 * (video_num // 10) + 1) + '-' + str(10 * (video_num // 10) + 10)
         frame = cv2.imread(
-            'E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip' + str(video_num) + '_' + str(
+            'E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1M/clip_' + str(video_num) + '' + str(
                 frames) + 'M.jpg')
         frame1 = cv2.imread(
             'E:/Clip' + folder_name + '/Clip' + str(video_num) + '_1D/clip' + str(video_num) + '_' + str(

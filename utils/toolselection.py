@@ -120,6 +120,7 @@ def valid_mask_collector(contours_number):
         contour_areas.append(box_h * box_w)
 
     # If a mask can be recognized, the mass center will be recorded
+    two_tools_touch = 0
     for num_of_contours in range(len(contours_number)):
         M = cv2.moments(contours_number[num_of_contours], 0)
         if M['m00']:
@@ -161,6 +162,7 @@ def valid_mask_collector(contours_number):
 def touched_tools_filter(row_num, frame_num, pre_width, pre_length, pre_LW_Ratio, workbook, frame_mask):
     # Filter out touched tools mask
     we.write_excel_table(frame_num, workbook, row_num, pre_width, pre_length, pre_LW_Ratio)
+    #we.write_excel_table(frame_num, workbook, row_num)
     cv2.putText(frame_mask, "Two tools contact together", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
     print('No.' + str(frame_num))
@@ -168,7 +170,7 @@ def touched_tools_filter(row_num, frame_num, pre_width, pre_length, pre_LW_Ratio
 
 def left_tool_filter(row_num, frame_num, workbook, frame_mask):
     # Filter out auxiliary tool mask
-    we.write_excel_table(frame_num, workbook, row_num, 0, 0, 0)
+    we.write_excel_table(frame_num, workbook, row_num)
     cv2.putText(frame_mask, "No Tools on the right side", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
     print('No.' + str(frame_num))
@@ -267,7 +269,7 @@ def main_tool_tracker(row_num, frame_num, pre_width, workbook, frame_mask, has_m
         has_main_tool = 0
         main_tool_coor = main_coor
         if pre_width != 0 or pre_width is not None:
-            if mass_xs[max_num_id] > circle_x:
+            if mass_xs[max_num_id] > circle_x-(circle_x-boundaryl)/2:
                 has_main_tool = 1
                 main_tool_coor = (mass_xs[max_num_id], mass_ys[max_num_id])
             else:
@@ -347,6 +349,7 @@ def bad_main_tool_mask_filter(contours_number, max_num_id, frame_num, frame_mask
         except cv2.error:
             save_no_main_tool_data("Hull defects error", 140)
             interrupt_loop = 1
+            defects = 1
         return interrupt_loop, defects
 
     def get_ee_convex(contour_defects):
