@@ -1,8 +1,89 @@
+
 class VideoConstants(object):
     def num_to_constants(self, video_num):
         fun_name = "video_num_" + str(video_num)
         method = getattr(self, fun_name, self.video_num_other)
         return method
+
+    def video_num_1(self):
+        true_rad = 427
+        inner_rad = 410
+        outer_rad = 437
+        circle_x = 471
+        circle_y = 296
+        left_bound = 150
+        right_bound = 790
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_2(self):
+        true_rad = 386
+        inner_rad = 371
+        outer_rad = 396
+        circle_x = 476
+        circle_y = 278
+        left_bound = 190
+        right_bound = 760
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_4(self):
+        true_rad = 334
+        inner_rad = 321
+        outer_rad = 344
+        circle_x = 480
+        circle_y = 278
+        left_bound = 280
+        right_bound = 680
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_5(self):
+        true_rad = 410
+        inner_rad = 394
+        outer_rad = 420
+        circle_x = 484
+        circle_y = 296
+        left_bound = 200
+        right_bound = 780
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_6(self):
+        true_rad = 418
+        inner_rad = 401
+        outer_rad = 428
+        circle_x = 482
+        circle_y = 280
+        left_bound = 160
+        right_bound = 800
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_7(self):
+        true_rad = 349
+        inner_rad = 335
+        outer_rad = 359
+        circle_x = 500
+        circle_y = 262
+        left_bound = 255
+        right_bound = 745
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_8(self):
+        true_rad = 392
+        inner_rad = 376
+        outer_rad = 406
+        circle_x = 479
+        circle_y = 264
+        left_bound = 180
+        right_bound = 770
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_9(self):
+        true_rad = 432
+        inner_rad = 415
+        outer_rad = 442
+        circle_x = 505
+        circle_y = 255
+        left_bound = 140
+        right_bound = 850
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
 
     def video_num_11(self):
         true_rad = 445
@@ -112,6 +193,86 @@ class VideoConstants(object):
         circle_y = 252
         left_bound = 290
         right_bound = 716
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_24(self):
+        true_rad = 332
+        inner_rad = 319
+        outer_rad = 342
+        circle_x = 494
+        circle_y = 267
+        left_bound = 300
+        right_bound = 710
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_25(self):
+        true_rad = 367
+        inner_rad = 351
+        outer_rad = 376
+        circle_x = 489
+        circle_y = 278
+        left_bound = 240
+        right_bound = 740
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_26(self):
+        true_rad = 374
+        inner_rad = 359
+        outer_rad = 384
+        circle_x = 459
+        circle_y = 270
+        left_bound = 195
+        right_bound = 734
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_27(self):
+        true_rad = 400
+        inner_rad = 384
+        outer_rad = 410
+        circle_x = 481
+        circle_y = 290
+        left_bound = 195
+        right_bound = 764
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_28(self):
+        true_rad = 441
+        inner_rad = 422
+        outer_rad = 451
+        circle_x = 444
+        circle_y = 272
+        left_bound = 80
+        right_bound = 800
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_29(self):
+        true_rad = 428
+        inner_rad = 411
+        outer_rad = 438
+        circle_x = 458
+        circle_y = 230
+        left_bound = 100
+        right_bound = 780
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_30(self):
+        true_rad = 460
+        inner_rad = 442
+        outer_rad = 470
+        circle_x = 494
+        circle_y = 250
+        left_bound = 100
+        right_bound = 850
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_31(self):
+        true_rad = 460
+        inner_rad = 442
+        outer_rad = 470
+        circle_x = 494
+        circle_y = 250
+        left_bound = 100
+        right_bound = 850
         return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
 
     def video_num_32(self):
@@ -274,6 +435,16 @@ class VideoConstants(object):
         right_bound = 783
         return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
 
+    def video_num_51(self):
+        true_rad = 398
+        inner_rad = 382
+        outer_rad = 408
+        circle_x = 496
+        circle_y = 294
+        left_bound = 220
+        right_bound = 770
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
     def video_num_52(self):
         true_rad = 389
         inner_rad = 373
@@ -404,6 +575,16 @@ class VideoConstants(object):
         right_bound = 842
         return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
 
+    def video_num_69(self):
+        true_rad = 402
+        inner_rad = 386
+        outer_rad = 412
+        circle_x = 460
+        circle_y = 276
+        left_bound = 160
+        right_bound = 770
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
     def video_num_70(self):
         true_rad = 344
         inner_rad = 330
@@ -462,6 +643,16 @@ class VideoConstants(object):
         circle_y = 269
         left_bound = 143
         right_bound = 861
+        return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
+
+    def video_num_76(self):
+        true_rad = 327
+        inner_rad = 314
+        outer_rad = 337
+        circle_x = 492
+        circle_y = 266
+        left_bound = 290
+        right_bound = 700
         return true_rad, inner_rad, outer_rad, circle_x, circle_y, left_bound, right_bound
 
     def video_num_77(self):
