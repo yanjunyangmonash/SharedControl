@@ -161,8 +161,8 @@ def valid_mask_collector(contours_number):
 
 def touched_tools_filter(row_num, frame_num, pre_width, pre_length, pre_LW_Ratio, workbook, frame_mask):
     # Filter out touched tools mask
-    we.write_excel_table(frame_num, workbook, row_num, pre_width, pre_length, pre_LW_Ratio)
-    #we.write_excel_table(frame_num, workbook, row_num)
+    #we.write_excel_table(frame_num, workbook, row_num, pre_width, pre_length, pre_LW_Ratio)
+    we.write_excel_table(frame_num, workbook, row_num)
     cv2.putText(frame_mask, "Two tools contact together", (20, 20), cv2.FONT_ITALIC, 0.5, (0, 255, 0))
     cv2.imwrite('C:/D/Clip16SL/clip16' + '_' + str(frame_num) + '.jpg', frame_mask)
     print('No.' + str(frame_num))
@@ -223,7 +223,7 @@ def end_effector_filter(frame_num, frame_mask, contour_area_sets, mass_xs, mass_
 
     sorted_contour_areas = sorted(contour_area_sets)
     max_num_id = contour_area_sets.index(max(contour_area_sets))
-    sec_max_num_id = 0
+    sec_max_num_id = 500
     only_ee = 0
     # If there are multiple masks, and three max masks are not noise, we compare the closest two masks among three
     # to decide whether these are end effectors or two different tools
@@ -269,6 +269,7 @@ def main_tool_tracker(row_num, frame_num, pre_width, workbook, frame_mask, has_m
         has_main_tool = 0
         main_tool_coor = main_coor
         if pre_width != 0 or pre_width is not None:
+        # Use x-axis position to classify the main tool and assist tool
             if mass_xs[max_num_id] > circle_x-(circle_x-boundaryl)/2:
                 has_main_tool = 1
                 main_tool_coor = (mass_xs[max_num_id], mass_ys[max_num_id])
@@ -294,6 +295,8 @@ def main_tool_tracker(row_num, frame_num, pre_width, workbook, frame_mask, has_m
                                                              main_coor)
                     if main_tool_movement < mask_dist_metrics:
                         main_tool_coor = (mass_xs[sec_max_num_id], mass_ys[sec_max_num_id])
+                        # Update max_num_id solves the main tool switch problem
+                        new_max_num_id = sec_max_num_id
                 else:
                     # how to set the main tool coor here?
                     # If new main tool shows, we assign it the coor that not the assist tool's coor
@@ -399,7 +402,7 @@ def bad_main_tool_mask_filter(contours_number, max_num_id, frame_num, frame_mask
             new_point = (new_point[0][0], new_point[0][1])
         else:
             new_point = (new_point[1][0], new_point[1][1])
-        cv2.line(frame_mask, point_far, (int(new_point[0]), int(new_point[1])), (0, 0, 225), 2)
+        #cv2.line(frame_mask, point_far, (int(new_point[0]), int(new_point[1])), (0, 0, 255), 2)
 
         far_to_edge = ((point_far[0] - new_point[0]) ** 2 + (point_far[1] - new_point[1]) ** 2) ** 0.5
         length_ratio = far_to_effector / far_to_edge * 100
